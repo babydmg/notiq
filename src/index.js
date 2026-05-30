@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import "./db/index.js";
 import tenantRoutes from "./routes/tenants.js";
 import jobRoutes from "./routes/jobs.js";
@@ -9,6 +10,13 @@ import billingRoutes from "./routes/billing.js";
 dotenv.config();
 
 const app = express();
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "x-api-key"],
+  }),
+);
 app.use("/billing/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
