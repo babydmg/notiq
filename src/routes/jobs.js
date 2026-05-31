@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.post("/schedule", auth, planCheck, async (req, res) => {
   const { to, subject, body, scheduledAt } = req.body;
-
+  console.log("📥 Schedule request:", { to, subject, body, scheduledAt });
   if (!to || !subject || !body || !scheduledAt) {
     return res
       .status(400)
