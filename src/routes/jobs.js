@@ -45,6 +45,7 @@ router.post("/schedule", auth, planCheck, async (req, res) => {
       usage: req.usage,
     });
   } catch (err) {
+    console.error("❌ Schedule error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
