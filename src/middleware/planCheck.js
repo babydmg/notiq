@@ -10,7 +10,7 @@ const planCheck = async (req, res, next) => {
 
     const result = await pool.query(
       `SELECT COUNT(*) FROM jobs
-        WHERE tenants_id = $1
+        WHERE tenant_id = $1
         AND status = 'sent'
         AND created_at >= date_trunc('month', NOW())`,
       [id],
