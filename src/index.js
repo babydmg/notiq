@@ -6,6 +6,7 @@ import tenantRoutes from "./routes/tenants.js";
 import jobRoutes from "./routes/jobs.js";
 import recurringRoutes from "./routes/recurring.js";
 import billingRoutes from "./routes/billing.js";
+import authRoutes from "./routes/auth.js";
 
 dotenv.config();
 
@@ -18,7 +19,7 @@ app.use(
       "https://notifiq-dashboard.vercel.app",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "x-api-key"],
+    allowedHeaders: ["Content-Type", "x-api-key", "Authorization"],
   }),
 );
 app.use("/billing/webhook", express.raw({ type: "application/json" }));
@@ -29,6 +30,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 app.use("/tenants", tenantRoutes);
+app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
 app.use("/recurring", recurringRoutes);
 app.use("/billing", billingRoutes);
