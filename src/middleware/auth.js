@@ -2,10 +2,10 @@ import pool from "../db/index.js";
 import jwt from "jsonwebtoken";
 
 const auth = async (req, res, next) => {
-  const apiKey = req.headers["x-api-key"];
+  // const apiKey = req.headers["x-api-key"];
   const authHeader = req.headers["authorization"];
 
-  if (!apiKey) return res.status(401).json({ error: "Missing API Key" });
+  // if (!apiKey) return res.status(401).json({ error: "Missing API Key" });
 
   try {
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -21,19 +21,19 @@ const auth = async (req, res, next) => {
       req.tenant = result.rows[0];
       return next();
     }
-    if (apiKey) {
-      const result = await pool.query(
-        `SELECT * FROM tenants WHERE api_key = $1`,
-        [apiKey],
-      );
+    // if (apiKey) {
+    //   const result = await pool.query(
+    //     `SELECT * FROM tenants WHERE api_key = $1`,
+    //     [apiKey],
+    //   );
 
-      if (result.rows.length === 0) {
-        return res.status(401).json({ error: "Invalid API key" });
-      }
+    //   if (result.rows.length === 0) {
+    //     return res.status(401).json({ error: "Invalid API key" });
+    //   }
 
-      req.tenant = result.rows[0];
-      return next();
-    }
+    //   req.tenant = result.rows[0];
+    //   return next();
+    // }
     return res.status(401).json({ error: "Authentication Required" });
   } catch (err) {
     return res.status(401).json({ error: "Invalid or expired token" });
