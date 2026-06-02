@@ -1,8 +1,8 @@
 import express from "express";
 import Stripe from "stripe";
-import dotenv from "dotenv";
 import pool from "../db/index.js";
 import auth from "../middleware/auth.js";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -10,40 +10,35 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const router = express.Router();
 
 router.post("/checkout", auth, async (req, res) => {
-  const { email } = req.body;
-
-  if (!email)
-    return res.status(400).json({
-      error: "Email is required",
-    });
+  const { email, id, name } = req.tenant;
 
   try {
-    const customer = await stripe.customers.create({
-      email,
-      metadata: { tenantId: req.tenant.id },
-    });
+    let customerId = req.tenant.stripe_customer_id;
 
-    await pool.query(
-      `UPDATE tenants SET email = $1, stripe_customer_id = $2 where id = $3`,
-      [email, customer.id, req.tenant.id],
-    );
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email,
+        name,
+        metadata: { tenantId: id },
+      });
+      customerId = customer.id;
+
+      await pool.query(
+        `UPDATE tenants SET stripe_customer_id = $1 WHERE id = $2`,
+        [customerId, id],
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
-      customer: customer.id,
+      customer: customerId,
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       mode: "subscription",
-      success_url: "http://localhost:3000/billing/success",
-      cancel_url: "http://localhost:3000/billing/cancel",
+      success_url: `${process.env.FRONTEND_URL}/dashboard?upgraded=true`,
+      cancel_url: `${process.env.FRONTEND_URL}/dashboard`,
     });
 
-    res.json({ checkOutUrl: session.url });
+    res.json({ checkoutUrl: session.url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,25 +63,19 @@ router.post(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const customerId = session.customer;
-      const subscriptionId = session.subscription;
-
       await pool.query(
         `UPDATE tenants SET plan = 'pro', stripe_subscription_id = $1 WHERE stripe_customer_id = $2`,
-        [subscriptionId, customerId],
+        [session.subscription, session.customer],
       );
-
-      console.log(`✅ Tenant upgraded to pro — customer ${customerId}`);
+      console.log(`✅ Tenant upgraded to pro — customer ${session.customer}`);
     }
 
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object;
-
       await pool.query(
         `UPDATE tenants SET plan = 'free', stripe_subscription_id = NULL WHERE stripe_customer_id = $1`,
         [subscription.customer],
       );
-
       console.log(
         `⚠️ Tenant downgraded to free — customer ${subscription.customer}`,
       );
@@ -96,21 +85,15 @@ router.post(
   },
 );
 
-router.get("/success", (req, res) =>
-  res.json({ message: "Subscription Activated" }),
-);
-router.get("/cancel", (req, res) =>
-  res.json({ message: "Checkout cancelled" }),
-);
-
 router.get("/usage", auth, async (req, res) => {
   try {
     const { id, plan } = req.tenant;
+
     const result = await pool.query(
       `SELECT COUNT(*) FROM jobs
-      WHERE tenant_id = $1
-      AND status = 'sent'
-      AND created_at >= date_trunc('month', NOW())`,
+       WHERE tenant_id = $1
+       AND status = 'sent'
+       AND created_at >= date_trunc('month', NOW())`,
       [id],
     );
 
@@ -126,5 +109,31 @@ router.get("/usage", auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+router.post("/cancel", auth, async (req, res) => {
+  const { stripe_subscription_id } = req.tenant;
+
+  if (!stripe_subscription_id) {
+    return res.status(400).json({ error: "No active subscription" });
+  }
+
+  try {
+    await stripe.subscriptions.cancel(stripe_subscription_id);
+    await pool.query(
+      `UPDATE tenants SET plan = 'free', stripe_subscription_id = NULL WHERE id = $1`,
+      [req.tenant.id],
+    );
+    res.json({ message: "Subscription cancelled" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/success", (req, res) =>
+  res.json({ message: "🎉 Subscription activated!" }),
+);
+router.get("/cancel", (req, res) =>
+  res.json({ message: "Checkout cancelled." }),
+);
 
 export default router;
