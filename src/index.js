@@ -7,6 +7,7 @@ import jobRoutes from "./routes/jobs.js";
 import recurringRoutes from "./routes/recurring.js";
 import billingRoutes from "./routes/billing.js";
 import authRoutes from "./routes/auth.js";
+import contactRoutes from "./routes/contacts.js";
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
 app.use("/recurring", recurringRoutes);
 app.use("/billing", billingRoutes);
+app.use("/contacts", contactRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on PORT: ${PORT}`));

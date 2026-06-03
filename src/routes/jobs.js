@@ -50,6 +50,68 @@ router.post("/schedule", auth, planCheck, async (req, res) => {
   }
 });
 
+router.post("/blast", auth, planCheck, async (req, res) => {
+  const { subject, body, scheduledAt } = req.body;
+  if (!subject || !body || !scheduledAt) {
+    return res.status(400).json({
+      error: "subject, body, scheduledAt are required",
+    });
+  }
+
+  const sendAt = new Date(scheduledAt);
+  const delay = sendAt.getTime() - Date.now();
+
+  if (delay < 0)
+    return res.status(400).json({
+      error: "scheduledAt must be in the future",
+    });
+
+  try {
+    const contacts = await pool.query(
+      `SELECT * FROM contacts WHERE tenant_id = $1 AND subscribed = true`,
+      [req.tenant.id],
+    );
+    if (contacts.rows.length === 0) {
+      return res.status(400).json({ error: "No subscribed contacts found" });
+    }
+
+    const jobs = [];
+    for (const contact of contacts.rows) {
+      const unsubscribeUrl = `${process.env.BACKEND_URL}/contacts/unsubscribe/${req.tenant.id}/${encodeURIComponent(contact.email)}`;
+      const bodyWithUnsub = `${body}<br/><br/><hr/><p style="font-size:12px;color:#999;">Don't want to receive these emails? <a href="${unsubscribeUrl}">Unsubscribe</a></p>`;
+      const result = await pool.query(
+        `INSERT INTO jobs (tenant_id, type, payload, scheduled_at)
+        VALUES ($1, 'email', $2, $3) RETURNING *`,
+        [
+          req.tenant.id,
+          { to: contact.email, subject, body: bodyWithUnsub },
+          sendAt,
+        ],
+      );
+      const job = result.rows[0];
+      await emailQueue.add(
+        "send-email",
+        {
+          jobId: job.id,
+          to: contact.email,
+          subject,
+          body: bodyWithUnsub,
+          tenantId: req.tenant.id,
+        },
+        { delay, jobId: job.id },
+      );
+      jobs.push(job);
+    }
+    res.status(201).json({
+      message: `Blast scheduled to ${jobs.length} contacts`,
+      count: jobs.length,
+      scheduledAt: sendAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/", auth, async (req, res) => {
   try {
     const result = await pool.query(
