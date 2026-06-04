@@ -1,6 +1,4 @@
-import { Worker } from "bullmq";
 import { Resend } from "resend";
-import { connection } from "../queues/emailQueue.js";
 import dotenv from "dotenv";
 import pool from "../db/index.js";
 
@@ -8,38 +6,52 @@ dotenv.config();
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const worker = new Worker(
-  "emails",
-  async (job) => {
-    const { jobId, to, subject, body } = job.data;
-    console.log(`Processing job ${jobId} - sending to ${to}`);
+const processJobs = async () => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM jobs
+      WHERE status = 'pending'
+      AND scheduled_at <= NOW()
+      ORDER BY scheduled_at ASC
+      LIMIT 50
+    `);
+    if (result.rows.length === 0) return;
+    console.log(`Processing ${result.rows.length} jobs....`);
+    for (const job of result.rows) {
+      try {
+        const { to, subject, body } = job.payload;
 
-    const { error } = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to,
-      subject,
-      html: `<p>${body}</p>`,
-    });
+        await pool.query(
+          `UPDATE jobs SET status = 'processing' WHERE id = $1`,
+          [job.id],
+        );
 
-    if (error) throw new Error(error.message);
+        const { error } = await resend.emails.send({
+          from: process.env.FROM_EMAIL,
+          to,
+          subject,
+          html: body,
+        });
+        if (error) throw new Error(error.message);
+        await pool.query(
+          `UPDATE jobs SET status = 'sent', sent_at = NOW() WHERE id = $1`,
+          [job.id],
+        );
 
-    await pool.query(
-      `UPDATE jobs SET status = 'sent', sent_at = NOW() where id = $1`,
-      [jobId],
-    );
+        console.log(`Job ${job.id} sent to ${to}`);
+      } catch (err) {
+        await pool.query(
+          `UPDATE jobs SET status = 'failed', error = $1 WHERE id = $2`,
+          [err.message, job.id],
+        );
+        console.error(`Job ${job.id} failed:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error("Worker error:", err.message);
+  }
+};
 
-    console.log(`Job ${jobId} sent successfully`);
-  },
-  { connection },
-);
-
-worker.on("failed", async (job, err) => {
-  console.error(`Job ${job.id} failed: `, err.message);
-
-  await pool.query(
-    `UPDATE jobs SET status = 'failed', error = $1 where id = $2`,
-    [err.message, job.data.jobId],
-  );
-});
-
-console.log("Email worker running......");
+console.log("Worker started - polling every 30 seconds");
+processJobs();
+setInterval(processJobs, 30 * 1000);
