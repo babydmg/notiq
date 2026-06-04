@@ -136,3 +136,5 @@ router.get("/unsubscribe/:tenantId/:email", async (req, res) => {
     res.status(500).json("Something went wrong.");
   }
 });
+
+export default router;
