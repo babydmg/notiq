@@ -18,6 +18,7 @@ app.use(
       "http://localhost:3000",
       "http://localhost:3001",
       "https://notifiq-dashboard.vercel.app/",
+      "https://notifiq-dashboard.vercel.app/signup",
       "https://notifiq-dashboard.vercel.app/*",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
