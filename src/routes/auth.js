@@ -2,9 +2,11 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { Resend } from "resend";
 import pool from "../db/index.js";
 
 const router = express.Router();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 router.post("/signup", async (req, res) => {
   const { name, email, password } = req.body;
@@ -95,6 +97,54 @@ router.post("/login", async (req, res) => {
         api_key: tenant.api_key,
       },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) return res.status(400).json({ error: "Email is required" });
+
+  try {
+    const result = await pool.query(`SELECT * FROM tenants WHERE email = $1`, [
+      email,
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.json({
+        message: "If that email exists, a reset link has been sent",
+      });
+    }
+
+    const tenant = result.rows[0];
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+
+    await pool.query(
+      `
+      UPDATE tenants SET reset_token = $1, reset_token_expires = $2 WHERE id = $3`,
+      [resetToken, expires, tenant.id],
+    );
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    await resend.emails.send({
+      from: process.env.FROM_EMAIL,
+      to: email,
+      subject: `Reset your Notifiq password`,
+      html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin:0 auto; padding:40px">
+        <h2 style="color: #111;">Reset your password</h2>
+        <p style="color: #555;">Click the button below to reset your password. This link expires in 1 hour.</p> 
+        <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin: 20px 0;">
+          Reset Password
+        </a>
+        <p style="color:#999;font-size:12px;">If you didn't request this, ignore this email.</p>
+      </div>
+      `,
+    });
+    res.json({ message: "If that emails exists, a reset link has been sent." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
