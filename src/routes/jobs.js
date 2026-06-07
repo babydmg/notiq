@@ -100,4 +100,71 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+router.get("/analytics", auth, async (req, res) => {
+  try {
+    const daily = await pool.query(
+      `
+      SELECT
+        DATE (created_at) as date,
+        COUNT (*) FILTER (WHERE status = 'sent') as sent,
+        SUM(opens) FILTER (WHERE status = 'sent') as opens,
+        SUM(clicks) FILTER (WHERE status = 'sent') as clicks
+      FROM jobs
+      WHERE tenant_id = $1
+      AND created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC`,
+      [req.tenant.id],
+    );
+    const overall = await pool.query(
+      `SELECT
+        COUNT(*) FILTER (WHERE status = 'sent') as total_sent,
+        COUNT(*) FILTER (WHERE status = 'pending') as total_pending,
+        COUNT(*) FILTER (WHERE status = 'failed') as total_failed,
+        COALESCE(SUM(opens) FILTER (WHERE status = 'sent'), 0) as total_opens,
+        COALESCE(SUM(clicks) FILTER (WHERE status = 'sent'), 0) as total_clicks,
+        COALESCE(
+          ROUND(
+            SUM(opens) FILTER (WHERE status = 'sent')::numeric /
+            NULLIF(COUNT(*) FILTER (WHERE status = 'sent'), 0) * 100, 1
+          ), 0
+        ) as open_rate,
+        COALESCE(
+         ROUND(
+            SUM(clicks) FILTER (WHERE status = 'sent')::numeric /
+            NULLIF(COUNT(*) FILTER (WHERE status = 'sent'), 0) * 100, 1
+          ), 0 
+        ) as click_rate
+        FROM jobs
+        WHERE tenant_id = $1`,
+      [req.tenant.id],
+    );
+
+    const topEmails = await pool.query(
+      `
+      SELECT
+        payload->>'subject' as subject,
+        opens,
+        clicks,
+        sent_at
+      FROM jobs
+      WHERE tenant_id = $1
+      AND status = 'sent'
+      ORDER BY opens DESC
+      LIMIT 5`,
+      [req.tenant.id],
+    );
+
+    res.json({
+      daily: daily.rows,
+      overall: overall.rows[0],
+      topEmails: topEmails.rows,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
 export default router;
