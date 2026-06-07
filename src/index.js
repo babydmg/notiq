@@ -9,6 +9,7 @@ import billingRoutes from "./routes/billing.js";
 import authRoutes from "./routes/auth.js";
 import contactRoutes from "./routes/contacts.js";
 import templatesRoutes from "./routes/templates.js";
+import trackingRoutes from "./routes/tracking.js";
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use("/recurring", recurringRoutes);
 app.use("/billing", billingRoutes);
 app.use("/contacts", contactRoutes);
 app.use("/templates", templatesRoutes);
+app.use("/tracking", trackingRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on PORT: ${PORT}`));

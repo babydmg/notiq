@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import dotenv from "dotenv";
+import { injectTracking } from "../utils/trackEmail.js";
 import pool from "../db/index.js";
 
 dotenv.config();
@@ -26,11 +27,17 @@ const processJobs = async () => {
           [job.id],
         );
 
+        const trackedBody = injectTracking(
+          body,
+          job.id,
+          process.env.BACKEND_URL,
+        );
+
         const { error } = await resend.emails.send({
           from: process.env.FROM_EMAIL,
           to,
           subject,
-          html: body,
+          html: trackedBody,
         });
         if (error) throw new Error(error.message);
         await pool.query(
