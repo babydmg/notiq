@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import dotenv from "dotenv";
 import { injectTracking } from "../utils/trackEmail.js";
+import { deliverWebhooks } from "../utils/deliverWebhooks.js";
 import pool from "../db/index.js";
 
 dotenv.config();
@@ -45,12 +46,24 @@ const processJobs = async () => {
           [job.id],
         );
 
+        await deliverWebhooks(job.tenant_id, "email.sent", {
+          jobId: job.id,
+          to,
+          subject,
+          sentAt: new Date().toISOString(),
+        });
+
         console.log(`Job ${job.id} sent to ${to}`);
       } catch (err) {
         await pool.query(
           `UPDATE jobs SET status = 'failed', error = $1 WHERE id = $2`,
           [err.message, job.id],
         );
+
+        await deliverWebhooks(job.tenant_id, "email.failed", {
+          jobId: job.id,
+          error: err.message,
+        });
         console.error(`Job ${job.id} failed:`, err.message);
       }
     }
