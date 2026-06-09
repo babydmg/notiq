@@ -34,8 +34,17 @@ const processJobs = async () => {
           process.env.BACKEND_URL,
         );
 
+        const tenantResult = await pool.query(
+          `SELECT from_email_custom, name FROM tenants id = $1`,
+          [job.tenant_id],
+        );
+
+        const tenant = tenantResult.rows[0];
+        const fromEmail = tenant?.from_email_custom || process.env.FROM_EMAIL;
+        const fromName = tenant?.name || "Notifiq";
+
         const { error } = await resend.emails.send({
-          from: process.env.FROM_EMAIL,
+          from: `${fromName} <${fromEmail}>`,
           to,
           subject,
           html: trackedBody,
