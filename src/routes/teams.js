@@ -57,7 +57,7 @@ router.post("/invite", auth, async (req, res) => {
     );
 
     const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${inviteToken}`;
-    await resend.send({
+    await resend.emails.send({
       from: process.env.FROM_EMAIL,
       to: email,
       subject: `You've been invited to join ${req.tenant.name} on Notifiq`,
