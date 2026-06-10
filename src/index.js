@@ -12,6 +12,7 @@ import templatesRoutes from "./routes/templates.js";
 import trackingRoutes from "./routes/tracking.js";
 import webhookRoutes from "./routes/webhooks.js";
 import domainRoutes from "./routes/domains.js";
+import teamRoutes from "./routes/teams.js";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use("/templates", templatesRoutes);
 app.use("/tracking", trackingRoutes);
 app.use("/webhooks", webhookRoutes);
 app.use("/domains", domainRoutes);
+app.use("/team", teamRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on PORT: ${PORT}`));
