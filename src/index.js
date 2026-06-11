@@ -13,6 +13,7 @@ import trackingRoutes from "./routes/tracking.js";
 import webhookRoutes from "./routes/webhooks.js";
 import domainRoutes from "./routes/domains.js";
 import teamRoutes from "./routes/teams.js";
+import requireRole from "./middleware/requireRole.js";
 
 dotenv.config();
 
@@ -31,6 +32,10 @@ app.use(
   }),
 );
 app.use("/billing/webhook", express.raw({ type: "application/json" }));
+app.use("/biling/checkout", auth, requireRole("admin"));
+app.use("/billing/cancel", auth, requireRole("admin"));
+app.use("/team/invite", auth, requireRole("admin"));
+app.use("/team/:id", auth, requireRole("admin"));
 
 app.use(express.json());
 

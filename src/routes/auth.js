@@ -192,4 +192,22 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+router.get("/me", auth, async (req, res) => {
+  try {
+    res.json({
+      tenant: {
+        id: req.tenant.id,
+        name: req.tenant.name,
+        email: req.tenant.email,
+        plan: req.tenant.plan,
+        api_key: req.tenant.api_key,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
 export default router;
