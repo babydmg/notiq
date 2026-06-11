@@ -124,7 +124,7 @@ router.post("/invite/:token/accept", auth, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT tm.*, t.name, as tenant_name FROM team_members tm
+      `SELECT tm.*, t.name as tenant_name FROM team_members tm
         JOIN tenants t ON t.id = tm.tenant_id
         WHERE tm.invite_token = $1 AND tm.invite_expires > NOW()`,
       [req.params.token],
