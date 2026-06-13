@@ -13,6 +13,7 @@ import trackingRoutes from "./routes/tracking.js";
 import webhookRoutes from "./routes/webhooks.js";
 import domainRoutes from "./routes/domains.js";
 import teamRoutes from "./routes/teams.js";
+import settingsRoutes from "./routes/settings.js";
 import requireRole from "./middleware/requireRole.js";
 
 dotenv.config();
@@ -53,6 +54,7 @@ app.use("/tracking", trackingRoutes);
 app.use("/webhooks", webhookRoutes);
 app.use("/domains", domainRoutes);
 app.use("/team", teamRoutes);
+app.use("/settings", settingsRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on PORT: ${PORT}`));
