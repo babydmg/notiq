@@ -39,7 +39,7 @@ router.put("/profile", auth, async (req, res) => {
   }
 });
 
-router.put("/email", async (req, res) => {
+router.put("/email", auth, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
