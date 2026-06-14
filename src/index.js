@@ -15,6 +15,7 @@ import domainRoutes from "./routes/domains.js";
 import teamRoutes from "./routes/teams.js";
 import settingsRoutes from "./routes/settings.js";
 import requireRole from "./middleware/requireRole.js";
+import auth from "./middleware/auth.js";
 
 dotenv.config();
 
