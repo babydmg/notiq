@@ -129,6 +129,57 @@ router.post("/cancel", auth, async (req, res) => {
   }
 });
 
+router.post("/portal", auth, async (req, res) => {
+  try {
+    if (!req.tenant.stripe_customer_id) {
+      return res.status(400).json({
+        error: "No billing account found. Please subscribe first.",
+      });
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: req.tenant.stripe_customer_id,
+        return_url: `${process.env.FRONTEND_URL}/dashboard/settings`,
+      });
+      res.json({ url: session.url });
+    }
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
+router.post("/invoices", auth, async (req, res) => {
+  try {
+    if (!req.tenant.stripe_customer_id) {
+      return res.json([]);
+    }
+
+    const invoices = await stripe.invoices.list({
+      customer: req.tenant.stripe_customer_id,
+      limit: 12,
+    });
+
+    res.json(
+      invoices.data.map((inv) => ({
+        id: inv.id,
+        amount: inv.amount_paid / 100,
+        currency: inv.currency.toUpperCase(),
+        status: inv.status,
+        date: new Date(inv.created * 1000).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+        pdf: inv.invoice_pdf,
+        hosted_url: inv.hosted_invoice_url,
+      })),
+    );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/success", (req, res) =>
   res.json({ message: "🎉 Subscription activated!" }),
 );
