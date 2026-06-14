@@ -149,7 +149,7 @@ router.post("/portal", auth, async (req, res) => {
   }
 });
 
-router.post("/invoices", auth, async (req, res) => {
+router.get("/invoices", auth, async (req, res) => {
   try {
     if (!req.tenant.stripe_customer_id) {
       return res.json([]);
