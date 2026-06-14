@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { Resend } from "resend";
 import pool from "../db/index.js";
+import auth from '../middleware/auth.js'
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
