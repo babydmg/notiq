@@ -85,15 +85,15 @@ router.put("/password", auth, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
-    return res.status(400).json({
-      error: "Current and new password are required",
-    });
+    return res
+      .status(400)
+      .json({ error: "Current and new password are required" });
   }
 
   if (newPassword.length < 8) {
-    return res.status(400).json({
-      error: "New password must be at least 8 characters",
-    });
+    return res
+      .status(400)
+      .json({ error: "New password must be at least 8 characters" });
   }
 
   try {
@@ -101,9 +101,10 @@ router.put("/password", auth, async (req, res) => {
       `SELECT password FROM tenants WHERE id = $1`,
       [req.tenant.id],
     );
+
     const valid = await bcrypt.compare(
       currentPassword,
-      result.rows[0].currentPassword,
+      result.rows[0].password,
     );
     if (!valid)
       return res.status(401).json({ error: "Incorrect current password" });
@@ -116,9 +117,7 @@ router.put("/password", auth, async (req, res) => {
 
     res.json({ message: "Password updated successfully" });
   } catch (err) {
-    res.status(500).json({
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
