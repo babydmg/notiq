@@ -27,11 +27,12 @@ router.post("/", auth, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO contacts (tenant_id, email, name)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (tenant_id, email) DO UPDATE SET name = $3
+      `INSERT INTO contacts (tenant_id, email, name, tags)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (tenant_id, email) DO UPDATE
+        SET name = $3, tags = $4
         RETURNING *`,
-      [req.tenant.id, email.toLowerCase(), name || null],
+      [req.tenant.id, email.toLowerCase(), name || null, tags || []],
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
