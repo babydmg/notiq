@@ -16,6 +16,7 @@ import teamRoutes from "./routes/teams.js";
 import settingsRoutes from "./routes/settings.js";
 import requireRole from "./middleware/requireRole.js";
 import auth from "./middleware/auth.js";
+import segmentRoutes from "./routes/segments.js";
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use("/webhooks", webhookRoutes);
 app.use("/domains", domainRoutes);
 app.use("/team", teamRoutes);
 app.use("/settings", settingsRoutes);
+app.use("/segments", segmentRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on PORT: ${PORT}`));

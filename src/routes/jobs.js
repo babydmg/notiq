@@ -167,4 +167,63 @@ router.get("/analytics", auth, async (req, res) => {
   }
 });
 
+router.post("/blast/segment/:segmentId", auth, planCheck, async (req, res) => {
+  const { subject, body, scheduledAt } = req.body;
+
+  if (!subject || !body || !scheduledAt) {
+    return res.status(400).json({
+      error: "subject, body, scheduledAt are required",
+    });
+  }
+
+  const sendAt = new Date(scheduledAt);
+  if (sendAt.getTime() - Date.now() < 0) {
+    return res.status(400).json({ error: "scheduledAt must be in future" });
+  }
+
+  try {
+    const contacts = await pool.query(
+      `SELECT c.* FROM contacts c
+      JOIN contact_segments cs ON cs.contact_id = c.id
+      JOIN segments s ON s.id = cs.segment_id
+      WHERE cs.segment_id = $1 AND s.tenant_id = $2 AND c.subscribed = true`,
+      [req.params.segmentId, req.tenant.id],
+    );
+
+    if (contacts.rows.length === 0) {
+      return res.status(400).json({
+        error: "No subscribed contacts in this segment",
+      });
+    }
+
+    let count = 0;
+    for (const contact of contacts.rows) {
+      const unsubUrl = `${process.env.BACKEND_URL}/contacts/unsubscribe/${req.tenant.id}/${encodeURIComponent(contact.email)}`;
+      const bodyWithUnsub = `${body}<br/><br/><hr/><p style="font-size:12px;color:#999;">Don't want these emails? <a href="${unsubUrl}">Unsubscribe</a></p>`;
+
+      await pool.query(
+        `INSERT INTO jobs (tenant_id, type, payload, scheduled_at)
+        VALUES ($1, 'email', $2, $3)`,
+        [
+          req.tenant.id,
+          { to: contact.email, subject, body: bodyWithUnsub },
+          sendAt,
+        ],
+      );
+      count++;
+    }
+
+    res
+      .status(201)
+      .json({
+        message: `Blast scheduled to ${count} contacts in segment`,
+        count,
+      });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
 export default router;
