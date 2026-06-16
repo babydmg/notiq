@@ -17,6 +17,7 @@ import settingsRoutes from "./routes/settings.js";
 import requireRole from "./middleware/requireRole.js";
 import auth from "./middleware/auth.js";
 import segmentRoutes from "./routes/segments.js";
+import resendWebhookRoutes from "./routes/resendWebhook.js";
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use("/biling/checkout", auth, requireRole("admin"));
 app.use("/billing/cancel", auth, requireRole("admin"));
 app.use("/team/invite", auth, requireRole("admin"));
 app.use("/team/:id", auth, requireRole("admin"));
+app.use("/resend", resendWebhookRoutes);
 
 app.use(express.json());
 

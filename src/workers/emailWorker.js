@@ -43,7 +43,7 @@ const processJobs = async () => {
         const fromEmail = tenant?.from_email_custom || process.env.FROM_EMAIL;
         const fromName = tenant?.name || "Notifiq";
 
-        const { error } = await resend.emails.send({
+        const { data, error } = await resend.emails.send({
           from: `${fromName} <${fromEmail}>`,
           to,
           subject,
@@ -51,8 +51,10 @@ const processJobs = async () => {
         });
         if (error) throw new Error(error.message);
         await pool.query(
-          `UPDATE jobs SET status = 'sent', sent_at = NOW() WHERE id = $1`,
-          [job.id],
+          `UPDATE jobs SET status = 'sent', sent_at = NOW(),
+          payload = payload || $1
+          WHERE id = $2`,
+          [JSON.stringify({ resend_id: data.id }), job.id],
         );
 
         await deliverWebhooks(job.tenant_id, "email.sent", {
