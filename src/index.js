@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
 import "./db/index.js";
 import tenantRoutes from "./routes/tenants.js";
 import jobRoutes from "./routes/jobs.js";
@@ -18,10 +19,19 @@ import requireRole from "./middleware/requireRole.js";
 import auth from "./middleware/auth.js";
 import segmentRoutes from "./routes/segments.js";
 import resendWebhookRoutes from "./routes/resendWebhook.js";
+import {
+  generalLimit,
+  authLimiter,
+  passwordResetLimiter,
+  emailSendLimiter,
+} from "./middleware/rateLimiter.js";
 
 dotenv.config();
 
 const app = express();
+
+app.use(helmet());
+
 app.use(
   cors({
     origin: [
@@ -42,11 +52,19 @@ app.use("/team/invite", auth, requireRole("admin"));
 app.use("/team/:id", auth, requireRole("admin"));
 app.use("/resend", resendWebhookRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+app.use("/auth/login", authLimiter);
+app.use("/auth/signup", authLimiter);
+app.use("/auth/forgot-password", passwordResetLimiter);
+app.use("/auth/reset-password", passwordResetLimiter);
+app.use("/jobs/schedule", emailSendLimiter);
+app.use("/jobs/blast", emailSendLimiter);
+
 app.use("/tenants", tenantRoutes);
 app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
