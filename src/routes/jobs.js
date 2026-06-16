@@ -155,9 +155,30 @@ router.get("/analytics", auth, async (req, res) => {
       [req.tenant.id],
     );
 
+    const bounces = await pool.query(
+      `SELECT
+        COUNT(*) FILTER (WHERE bounce_type = 'hard') as hard_bounces,
+        COUNT(*) FILTER (WHERE bounce_type = 'soft') as soft_bounces
+        FROM jobs
+        WHERE tenant_id = $1 AND bounce_type IS NOT NULL`,
+      [req.tenant.id],
+    );
+
+    const spamComplaints = await pool.query(
+      `SELECT COUNT(*) as complaints
+      FROM contacts
+      WHERE tenant_id = $1 AND status = 'complained'`,
+      [req.tenant.id],
+    );
+
     res.json({
       daily: daily.rows,
-      overall: overall.rows[0],
+      overall: {
+        ...overall.rows[0],
+        hard_bounces: bounces.rows[0].hard_bounces || 0,
+        soft_bounces: bounces.rows[0].soft_bounces || 0,
+        spam_complaints: spamComplaints.rows[0].complaints || 0,
+      },
       topEmails: topEmails.rows,
     });
   } catch (err) {
@@ -213,12 +234,10 @@ router.post("/blast/segment/:segmentId", auth, planCheck, async (req, res) => {
       count++;
     }
 
-    res
-      .status(201)
-      .json({
-        message: `Blast scheduled to ${count} contacts in segment`,
-        count,
-      });
+    res.status(201).json({
+      message: `Blast scheduled to ${count} contacts in segment`,
+      count,
+    });
   } catch (err) {
     res.status(500).json({
       error: err.message,
