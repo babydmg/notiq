@@ -138,4 +138,59 @@ router.post("/regenerate-key", auth, async (req, res) => {
   }
 });
 
+router.get("/onboarding", auth, async (req, res) => {
+  try {
+    const [contacts, templates, jobs, domains] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM contacts WHERE tenant_id = $1`, [
+        req.tenant.id,
+      ]),
+      pool.query(`SELECT COUNT(*) FROM templates WHERE tenant_id = $1`, [
+        req.tenant.id,
+      ]),
+      pool.query(`SELECT COUNT(*) FROM jobs WHERE tenant_id = $1`, [
+        req.tenant.id,
+      ]),
+      pool.query(
+        `SELECT COUNT(*) FROM domains WHERE tenant_id = $1 AND status = 'verified'`,
+        [req.tenant.id],
+      ),
+    ]);
+
+    const steps = {
+      hasContacts: parseInt(contacts.rows[0].count) > 0,
+      hasTemplate: parseInt(templates.rows[0].count) > 0,
+      hasSentEmail: parseInt(jobs.rows[0].count) > 0,
+      hasDomain: parseInt(domains.rows[0].count) > 0,
+    };
+
+    const completedCount = Object.values(steps).filter(Boolean).length;
+    res.json({
+      steps,
+      completedCount,
+      totalSteps: 4,
+      isComplete: completedCount === 4,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
+router.post("/onboarding/dismiss", auth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE tenants SET onboarding_completed = true WHERE id = $1`,
+      [req.tenant.id],
+    );
+    res.json({
+      message: "Onboarding dismissed",
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
 export default router;
