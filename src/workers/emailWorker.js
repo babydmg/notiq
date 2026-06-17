@@ -1,8 +1,8 @@
 import { Resend } from "resend";
-import dotenv from "dotenv";
-import { injectTracking } from "../utils/trackEmail.js";
-import { deliverWebhooks } from "../utils/deliverWebhooks.js";
 import pool from "../db/index.js";
+import { injectTracking } from "../utils/trackEmail.js";
+import { deliverWebhooks } from "../utils/deliverWebhook.js";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -17,8 +17,11 @@ const processJobs = async () => {
       ORDER BY scheduled_at ASC
       LIMIT 50
     `);
+
     if (result.rows.length === 0) return;
-    console.log(`Processing ${result.rows.length} jobs....`);
+
+    console.log(`⚙️  Processing ${result.rows.length} jobs...`);
+
     for (const job of result.rows) {
       try {
         const { to, subject, body } = job.payload;
@@ -34,8 +37,9 @@ const processJobs = async () => {
           process.env.BACKEND_URL,
         );
 
+        // Get tenant's custom from email if set
         const tenantResult = await pool.query(
-          `SELECT from_email_custom, name FROM tenants id = $1`,
+          `SELECT from_email_custom, name FROM tenants WHERE id = $1`,
           [job.tenant_id],
         );
 
@@ -49,14 +53,18 @@ const processJobs = async () => {
           subject,
           html: trackedBody,
         });
+
         if (error) throw new Error(error.message);
+
+        // Save Resend's email ID for webhook matching — cast to jsonb explicitly
         await pool.query(
           `UPDATE jobs SET status = 'sent', sent_at = NOW(),
-          payload = payload || $1::jsonb
-          WHERE id = $2`,
+           payload = payload || $1::jsonb
+           WHERE id = $2`,
           [JSON.stringify({ resend_id: data.id }), job.id],
         );
 
+        // Fire email.sent webhook
         await deliverWebhooks(job.tenant_id, "email.sent", {
           jobId: job.id,
           to,
@@ -64,25 +72,27 @@ const processJobs = async () => {
           sentAt: new Date().toISOString(),
         });
 
-        console.log(`Job ${job.id} sent to ${to}`);
+        console.log(`✅ Job ${job.id} sent to ${to}`);
       } catch (err) {
         await pool.query(
           `UPDATE jobs SET status = 'failed', error = $1 WHERE id = $2`,
           [err.message, job.id],
         );
 
+        // Fire email.failed webhook
         await deliverWebhooks(job.tenant_id, "email.failed", {
           jobId: job.id,
           error: err.message,
         });
-        console.error(`Job ${job.id} failed:`, err.message);
+
+        console.error(`❌ Job ${job.id} failed:`, err.message);
       }
     }
   } catch (err) {
-    console.error("Worker error:", err.message);
+    console.error("❌ Worker error:", err.message);
   }
 };
 
-console.log("Worker started - polling every 30 seconds");
+console.log("⚙️  Worker started — polling every 30 seconds...");
 processJobs();
 setInterval(processJobs, 30 * 1000);
