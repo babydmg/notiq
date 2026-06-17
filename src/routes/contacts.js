@@ -22,7 +22,7 @@ router.get("/", auth, async (req, res) => {
 });
 
 router.post("/", auth, async (req, res) => {
-  const { email, name } = req.body;
+  const { email, name, tags } = req.body;
   if (!email) return res.status(400).json({ error: "Email is required" });
 
   try {

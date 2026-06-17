@@ -164,6 +164,7 @@ router.get("/onboarding", auth, async (req, res) => {
     };
 
     const completedCount = Object.values(steps).filter(Boolean).length;
+
     res.json({
       steps,
       completedCount,
@@ -171,9 +172,7 @@ router.get("/onboarding", auth, async (req, res) => {
       isComplete: completedCount === 4,
     });
   } catch (err) {
-    res.status(500).json({
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
