@@ -52,7 +52,7 @@ const processJobs = async () => {
         if (error) throw new Error(error.message);
         await pool.query(
           `UPDATE jobs SET status = 'sent', sent_at = NOW(),
-          payload = payload || $1
+          payload = payload || $1::jsonb
           WHERE id = $2`,
           [JSON.stringify({ resend_id: data.id }), job.id],
         );
