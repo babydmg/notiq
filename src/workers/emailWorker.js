@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import pool from "../db/index.js";
 import { injectTracking } from "../utils/trackEmail.js";
-import { deliverWebhooks } from "../utils/deliverWebhook.js";
+import { deliverWebhooks } from "../utils/deliverWebhooks.js";
 import dotenv from "dotenv";
 
 dotenv.config();
